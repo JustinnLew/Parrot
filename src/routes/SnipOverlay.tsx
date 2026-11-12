@@ -1,13 +1,24 @@
 import { useEffect, useRef, useState } from "react";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { tempDir, join } from "@tauri-apps/api/path";
+import { SelectionBox } from "./SelectionBox";
 
-type Pt = { x: number; y: number };
+type Pt = [number, number];
+type TextCapture = { boundingBox: [Pt, Pt, Pt, Pt]; text: string };
+type SnippingState = "drawing" | "processing" | "approval";
+
+// Are the OCR boxes relative to the cropped region (true) or the full screenshot (false)?
+const BOXES_RELATIVE_TO_CROP = true;
 
 export default function SnipOverlay() {
   const [url, setUrl] = useState<string | null>(null);
   const [start, setStart] = useState<Pt | null>(null);
   const [end, setEnd] = useState<Pt | null>(null);
+  const [textCapture, setTextCapture] = useState<TextCapture[]>([]);
+  const [state, setState] = useState<SnippingState>("drawing");
+  const [hovered, setHovered] = useState<number | null>(null);
+  // Scale factors (image px per CSS px), saved when the snip is made
+  const [scale, setScale] = useState<{ sx: number; sy: number }>({ sx: 1, sy: 1 });
   const imgRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
@@ -21,53 +32,78 @@ export default function SnipOverlay() {
   // Esc cancels
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") invoke("cancel_snip");
+      if (e.key === "Escape") invoke("snip_cancel");
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  if (!url) return null;
-
   const rect =
     start && end
       ? {
-          left: Math.min(start.x, end.x),
-          top: Math.min(start.y, end.y),
-          width: Math.abs(end.x - start.x),
-          height: Math.abs(end.y - start.y),
+          left: Math.min(start[0], end[0]),
+          top: Math.min(start[1], end[1]),
+          width: Math.abs(end[0] - start[0]),
+          height: Math.abs(end[1] - start[1]),
         }
       : null;
 
+  const reset = () => {
+    setStart(null);
+    setEnd(null);
+    setTextCapture([]);
+    setState("drawing");
+  };
+
   const onUp = () => {
+    if (state !== "drawing") return;
     const img = imgRef.current;
     if (!img || !rect || rect.width < 3 || rect.height < 3) {
-      setStart(null);
-      setEnd(null);
+      reset();
       return;
     }
-    // convert from CSS pixels to real image pixels (handles DPI scaling)
+    setState("processing");
+
     const sx = img.naturalWidth / img.clientWidth;
     const sy = img.naturalHeight / img.clientHeight;
-    invoke("finish_snip", {
+    setScale({ sx, sy });
+
+    invoke<TextCapture[]>("snip_process", {
       x: Math.round(rect.left * sx),
       y: Math.round(rect.top * sy),
       w: Math.round(rect.width * sx),
       h: Math.round(rect.height * sy),
-    });
-    setStart(null);
-    setEnd(null);
+    })
+      .then((lines) => {
+        setTextCapture(lines);
+        setState("approval");
+      })
+      .catch((err) => {
+        console.error("snip_process failed:", err);
+        reset();
+      });
   };
 
+  // Image px (from OCR) -> CSS px on screen
+  const toScreen = (p: Pt): Pt => {
+    const offX = BOXES_RELATIVE_TO_CROP && rect ? rect.left : 0;
+    const offY = BOXES_RELATIVE_TO_CROP && rect ? rect.top : 0;
+    return [ offX + p[0] / scale.sx, offY + p[1] / scale.sy ];
+  };
+
+  if (!url) return null;
   return (
     <div
       className="fixed inset-0 cursor-crosshair select-none overflow-hidden"
       onPointerDown={(e) => {
+        if (state !== "drawing") return;
         e.currentTarget.setPointerCapture(e.pointerId);
-        setStart({ x: e.clientX, y: e.clientY });
-        setEnd({ x: e.clientX, y: e.clientY });
+        setStart([e.clientX, e.clientY ]);
+        setEnd([e.clientX, e.clientY ]);
       }}
-      onPointerMove={(e) => start && setEnd({ x: e.clientX, y: e.clientY })}
+      onPointerMove={(e) =>
+        start && state === "drawing" && setEnd([e.clientX, e.clientY ])
+      }
       onPointerUp={onUp}
     >
       <img
@@ -82,35 +118,88 @@ export default function SnipOverlay() {
       )}
 
       {/* selection box */}
-      {rect && (
-        <div
-            className="pointer-events-none absolute shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]"
-            style={rect}
+      <SelectionBox rect={rect} state={state} />
+
+      {/* OCR overlay */}
+      {state === "approval" &&
+        textCapture.map((t, i) => {
+          if (!t?.boundingBox || t.boundingBox.length !== 4) return null;
+          const pts = t.boundingBox.map(toScreen);
+          const left = Math.min(...pts.map((p) => p[0]));
+          const top = Math.min(...pts.map((p) => p[1]));
+          const width = Math.max(...pts.map((p) => p[0])) - left;
+          const height = Math.max(...pts.map((p) => p[1])) - top;
+
+          return (
+            <div
+              key={i}
+              className="
+                absolute flex cursor-pointer items-center overflow-hidden
+                rounded-sm border px-0.5 text-white"
+              style={{
+                left,
+                top,
+                width,
+                height,
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onPointerEnter={() => setHovered(i)}
+              onPointerLeave={() => setHovered(null)}
+              onClick={() => navigator.clipboard.writeText(t.text)}
+            >
+            </div>
+          );
+        })}
+
+      {/* tooltip showing the hovered text */}
+      {state === "approval" && hovered !== null && textCapture[hovered] && (() => {
+        const p = toScreen(textCapture[hovered].boundingBox[3]);
+        return (
+          <div
+            className="pointer-events-none absolute z-10 max-w-xs rounded bg-black/80 px-2 py-1 text-sm text-white"
+            style={{ left: p[0], top: p[1] + 4 }}
+          >
+            {textCapture[hovered].text}
+          </div>
+        );
+      })()}
+
+      <div className="
+          absolute left-1/2 top-4 z-10 -translate-x-1/2
+          flex items-center gap-1 p-1.5
+          rounded-2xl
+          bg-white/10 backdrop-blur-xl backdrop-saturate-150
+          border border-white/30
+          shadow-[0_8px_32px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.4)]
+          ring-1 ring-black/10
+        ">
+        <button
+          className="z-10 cursor-pointer rounded px-2 py-1 text-white"
+          onPointerDown={(e) => e.stopPropagation()}
+          onPointerUp={(e) => e.stopPropagation()}
+          onClick={() => invoke("snip_confirm", {
+            lines: textCapture.map((t) => t.text)
+          })}
         >
-            <svg className="absolute inset-0 h-full w-full overflow-visible">
-            <rect width="100%" height="100%" fill="none" stroke="white" strokeWidth="1" />
-            <rect
-                width="100%"
-                height="100%"
-                fill="none"
-                stroke="black"
-                strokeWidth="1"
-                strokeDasharray="6 6"
-                className="animate-[march_0.6s_linear_infinite]"
-            />
-            </svg>
-
-        </div>
-        )}
-
-      <button
-        className="absolute right-2 top-2 z-10 cursor-pointer rounded bg-black/70 px-2 py-1 text-white"
-        onPointerDown={(e) => e.stopPropagation()}
-        onPointerUp={(e) => e.stopPropagation()}
-        onClick={() => invoke("cancel_snip")}
-      >
-        X
-      </button>
+          Confirm
+        </button>
+        <button
+          className="z-10 cursor-pointer rounded px-2 py-1 text-white"
+          onPointerDown={(e) => e.stopPropagation()}
+          onPointerUp={(e) => e.stopPropagation()}
+          onClick={() => reset()}
+        >
+          Reset
+        </button>
+        <button
+          className="z-10 cursor-pointer rounded px-2 py-1 text-white"
+          onPointerDown={(e) => e.stopPropagation()}
+          onPointerUp={(e) => e.stopPropagation()}
+          onClick={() => invoke("snip_cancel")}
+        >
+          Exit
+        </button>
+      </div>
     </div>
   );
 }
