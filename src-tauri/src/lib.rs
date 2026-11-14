@@ -1,3 +1,6 @@
+use crate::translate::translation_init;
+use crate::ocr::ocr_init;
+
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -5,15 +8,16 @@ fn greet(name: &str) -> String {
 }
 
 mod ocr;
+mod translate;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app: &mut tauri::App| {
-            use crate::ocr::ocr_init;
-
             ocr_init(app.handle())?;
+            translation_init(app.handle())?;
 
             #[cfg(desktop)]
             ocr::register_hotkeys(app.handle())?;
@@ -24,6 +28,7 @@ pub fn run() {
             greet,
             ocr::snip_cancel,
             ocr::snip_process,
+            ocr::snip_confirm,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

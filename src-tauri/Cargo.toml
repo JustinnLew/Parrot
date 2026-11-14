@@ -27,6 +27,8 @@ xcap = "0.9.8"
 image = "0.25.10"
 ort = "2.0.0-rc.15"
 imageproc = "0.27.0"
+tauri-plugin-shell = "2"
+reqwest = { version = "0.13.5", features= ["json"] }
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

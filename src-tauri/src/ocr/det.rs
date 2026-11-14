@@ -4,8 +4,8 @@ use std::error::Error;
 use std::path::PathBuf;
 use std::time::Instant;
 
-use image::{imageops::FilterType, GrayImage, Rgba, RgbaImage};
-use imageproc::contours::{find_contours, BorderType};
+use image::{GrayImage, Rgba, RgbaImage, imageops::FilterType};
+use imageproc::contours::{BorderType, find_contours};
 use imageproc::drawing::draw_line_segment_mut;
 use imageproc::geometry::min_area_rect;
 use ort::value::Tensor;
@@ -111,7 +111,11 @@ pub fn run_detection(state: &OcrState, img: &RgbaImage) -> Result<Vec<TextBox>, 
     if DEBUG {
         let mn = input.data.iter().cloned().fold(f32::INFINITY, f32::min);
         let mx = input.data.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
-        dlog!("tensor value range: {:.3} .. {:.3} (expect roughly -2.1 .. 2.6)", mn, mx);
+        dlog!(
+            "tensor value range: {:.3} .. {:.3} (expect roughly -2.1 .. 2.6)",
+            mn,
+            mx
+        );
     }
 
     let (scale_x, scale_y) = (input.scale_x, input.scale_y);
@@ -155,7 +159,9 @@ pub fn run_detection(state: &OcrState, img: &RgbaImage) -> Result<Vec<TextBox>, 
             100.0 * above as f32 / probs.len() as f32
         );
         if mx < THRESH {
-            dlog!("WARNING: max prob is below the threshold, so nothing will be detected. Check preprocessing (BGR order, normalization).");
+            dlog!(
+                "WARNING: max prob is below the threshold, so nothing will be detected. Check preprocessing (BGR order, normalization)."
+            );
         }
     }
 
@@ -211,7 +217,10 @@ fn postprocess_det(
     debug_dir: Option<&PathBuf>,
 ) -> Vec<TextBox> {
     // Binary mask
-    let mask: Vec<u8> = probs.iter().map(|&p| if p > THRESH { 255 } else { 0 }).collect();
+    let mask: Vec<u8> = probs
+        .iter()
+        .map(|&p| if p > THRESH { 255 } else { 0 })
+        .collect();
     let bitmap = GrayImage::from_raw(w as u32, h as u32, mask).expect("mask size mismatch");
     if let Some(dir) = debug_dir {
         let _ = bitmap.save(dir.join("2_mask.png"));
@@ -259,7 +268,10 @@ fn postprocess_det(
         let max_x = orig_w as f32 - 1.0;
         let max_y = orig_h as f32 - 1.0;
         let mapped = expanded.map(|(x, y)| {
-            ((x / scale_x).clamp(0.0, max_x), (y / scale_y).clamp(0.0, max_y))
+            (
+                (x / scale_x).clamp(0.0, max_x),
+                (y / scale_y).clamp(0.0, max_y),
+            )
         });
 
         boxes.push(TextBox { pts: mapped, score });
@@ -314,10 +326,30 @@ fn in_quad(p: Pt, q: &[Pt; 4]) -> bool {
 
 /// Mean probability inside the box (Paddle's `box_score_fast`).
 fn box_score(probs: &[f32], w: usize, h: usize, q: &[Pt; 4]) -> f32 {
-    let min_x = q.iter().map(|p| p.0).fold(f32::INFINITY, f32::min).floor().max(0.0) as usize;
-    let max_x = (q.iter().map(|p| p.0).fold(f32::NEG_INFINITY, f32::max).ceil() as usize).min(w - 1);
-    let min_y = q.iter().map(|p| p.1).fold(f32::INFINITY, f32::min).floor().max(0.0) as usize;
-    let max_y = (q.iter().map(|p| p.1).fold(f32::NEG_INFINITY, f32::max).ceil() as usize).min(h - 1);
+    let min_x = q
+        .iter()
+        .map(|p| p.0)
+        .fold(f32::INFINITY, f32::min)
+        .floor()
+        .max(0.0) as usize;
+    let max_x = (q
+        .iter()
+        .map(|p| p.0)
+        .fold(f32::NEG_INFINITY, f32::max)
+        .ceil() as usize)
+        .min(w - 1);
+    let min_y = q
+        .iter()
+        .map(|p| p.1)
+        .fold(f32::INFINITY, f32::min)
+        .floor()
+        .max(0.0) as usize;
+    let max_y = (q
+        .iter()
+        .map(|p| p.1)
+        .fold(f32::NEG_INFINITY, f32::max)
+        .ceil() as usize)
+        .min(h - 1);
 
     let (mut sum, mut n) = (0.0_f32, 0_u32);
     for y in min_y..=max_y {
@@ -357,7 +389,10 @@ fn unclip(p: &[Pt; 4], ratio: f32) -> [Pt; 4] {
 /// Top-to-bottom, left-to-right; boxes on roughly the same line sort by x.
 fn sort_boxes(boxes: &mut Vec<TextBox>) {
     boxes.sort_by(|a, b| {
-        a.pts[0].1.total_cmp(&b.pts[0].1).then(a.pts[0].0.total_cmp(&b.pts[0].0))
+        a.pts[0]
+            .1
+            .total_cmp(&b.pts[0].1)
+            .then(a.pts[0].0.total_cmp(&b.pts[0].0))
     });
     for i in 0..boxes.len().saturating_sub(1) {
         for j in (0..=i).rev() {
@@ -393,7 +428,10 @@ fn save_debug_images(
     let _ = img.save(dir.join("0_input.png"));
 
     // 1: probability map as grayscale (white = text)
-    let gray: Vec<u8> = probs.iter().map(|&p| (p.clamp(0.0, 1.0) * 255.0) as u8).collect();
+    let gray: Vec<u8> = probs
+        .iter()
+        .map(|&p| (p.clamp(0.0, 1.0) * 255.0) as u8)
+        .collect();
     if let Some(g) = GrayImage::from_raw(pw as u32, ph as u32, gray) {
         let _ = g.save(dir.join("1_prob_map.png"));
     }

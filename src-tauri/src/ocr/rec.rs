@@ -1,15 +1,15 @@
 //! PP-OCR recognition: perspective crop -> preprocess -> ONNX -> CTC decode.
 
+use image::{Rgba, RgbaImage, imageops::FilterType};
+use imageproc::geometric_transformations::{Interpolation, Projection, warp_into};
+use ort::value::Tensor;
 use std::error::Error;
 use std::time::Instant;
-use image::{imageops::FilterType, Rgba, RgbaImage};
-use imageproc::geometric_transformations::{warp_into, Interpolation, Projection};
-use ort::value::Tensor;
 
 use crate::ocr::{Pt, TextCapture};
 
-use super::det::TextBox;
 use super::OcrState;
+use super::det::TextBox;
 
 // ---- Settings (from inference.yml: RecResizeImg image_shape [3, 48, 320]) ----
 const REC_H: u32 = 48;
@@ -28,15 +28,32 @@ const DEBUG: bool = true;
 /// `pts` must be ordered tl, tr, br, bl.
 fn crop_box(img: &RgbaImage, pts: &[Pt; 4]) -> Option<RgbaImage> {
     let dist = |a: Pt, b: Pt| ((a.0 - b.0).powi(2) + (a.1 - b.1).powi(2)).sqrt();
-    let w = dist(pts[0], pts[1]).max(dist(pts[3], pts[2])).round().max(1.0) as u32;
-    let h = dist(pts[0], pts[3]).max(dist(pts[1], pts[2])).round().max(1.0) as u32;
+    let w = dist(pts[0], pts[1])
+        .max(dist(pts[3], pts[2]))
+        .round()
+        .max(1.0) as u32;
+    let h = dist(pts[0], pts[3])
+        .max(dist(pts[1], pts[2]))
+        .round()
+        .max(1.0) as u32;
 
-    let to = [(0.0, 0.0), (w as f32, 0.0), (w as f32, h as f32), (0.0, h as f32)];
+    let to = [
+        (0.0, 0.0),
+        (w as f32, 0.0),
+        (w as f32, h as f32),
+        (0.0, h as f32),
+    ];
     // Maps source-image coordinates -> crop coordinates.
     let proj = Projection::from_control_points(*pts, to)?;
 
     let mut out = RgbaImage::new(w, h);
-    warp_into(img, proj, Interpolation::Bilinear, imageproc::geometric_transformations::Border::Constant(Rgba([255, 255, 255, 255])), &mut out);
+    warp_into(
+        img,
+        proj,
+        Interpolation::Bilinear,
+        imageproc::geometric_transformations::Border::Constant(Rgba([255, 255, 255, 255])),
+        &mut out,
+    );
 
     // Tall boxes are vertical text: rotate 90 degrees counter-clockwise.
     if h as f32 / w as f32 >= 1.5 {
@@ -149,8 +166,7 @@ pub fn run_recognition(
             let mut model = state.recognition.lock().map_err(|e| e.to_string())?;
 
             // if the compiler complains, add a `?` after the macro call.
-            let outputs =
-                model.run(ort::inputs!["x" => Tensor::from_array((shape, data))?])?;
+            let outputs = model.run(ort::inputs!["x" => Tensor::from_array((shape, data))?])?;
 
             let (out_shape, out) = outputs[0].try_extract_tensor::<f32>()?;
             let dims: Vec<usize> = out_shape.iter().map(|&d| d as usize).collect();
@@ -164,7 +180,10 @@ pub fn run_recognition(
         let (text, score) = ctc_decode(&probs, steps, classes, charset);
 
         if !text.is_empty() && score >= DROP_SCORE {
-            lines.push(TextCapture { bounding_box: (b.pts), text });
+            lines.push(TextCapture {
+                bounding_box: (b.pts),
+                text,
+            });
         }
     }
 
@@ -178,7 +197,12 @@ pub fn run_recognition(
 }
 
 #[derive(Clone, Copy)]
-struct Bounds { left: f32, top: f32, right: f32, bottom: f32 }
+struct Bounds {
+    left: f32,
+    top: f32,
+    right: f32,
+    bottom: f32,
+}
 
 impl Bounds {
     fn from_box(pts: &[(f32, f32); 4]) -> Self {
@@ -192,7 +216,9 @@ impl Bounds {
         }
     }
 
-    fn height(&self) -> f32 { self.bottom - self.top }
+    fn height(&self) -> f32 {
+        self.bottom - self.top
+    }
 
     fn union(&self, o: &Bounds) -> Bounds {
         Bounds {
@@ -243,7 +269,7 @@ fn merge_bounding_boxes(mut boxes: Vec<TextCapture>) -> Vec<TextCapture> {
             v_gap < max_h * 0.6                 // close vertically
                 && v_gap > -g.last.height() * 0.5 // below, not beside
                 && min_h / max_h > 0.7          // similar font size
-                && x_overlap > 0.0                // same column
+                && x_overlap > 0.0 // same column
         });
 
         match target {
@@ -252,14 +278,23 @@ fn merge_bounding_boxes(mut boxes: Vec<TextCapture>) -> Vec<TextCapture> {
                 g.last = b;
                 g.all = g.all.union(&b);
             }
-            None => groups.push(Group { text: c.text, last: b, all: b }),
+            None => groups.push(Group {
+                text: c.text,
+                last: b,
+                all: b,
+            }),
         }
     }
 
     groups
         .into_iter()
         .map(|g| {
-            let Bounds { left, top, right, bottom } = g.all;
+            let Bounds {
+                left,
+                top,
+                right,
+                bottom,
+            } = g.all;
             TextCapture {
                 bounding_box: [(left, top), (right, top), (right, bottom), (left, bottom)],
                 text: g.text,

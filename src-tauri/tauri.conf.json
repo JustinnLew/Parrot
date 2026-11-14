@@ -35,6 +35,9 @@
     "resources": [
       "src/ocr/detection/",
       "src/ocr/recognition/"
+    ],
+    "externalBin": [
+      "binaries/lt"
     ]
   }
 }
