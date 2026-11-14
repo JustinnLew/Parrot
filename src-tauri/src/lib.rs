@@ -1,5 +1,5 @@
-use crate::translate::translation_init;
 use crate::ocr::ocr_init;
+use crate::translate::translation_init;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]

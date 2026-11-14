@@ -1,6 +1,6 @@
-use tauri::{AppHandle, Manager};
-use tauri_plugin_shell::{ShellExt, process::{CommandEvent}};
 use serde::{Deserialize, Serialize};
+use tauri::{AppHandle, Manager};
+use tauri_plugin_shell::{ShellExt, process::CommandEvent};
 
 #[derive(Serialize)]
 struct TranslationReq<'a> {
@@ -47,7 +47,9 @@ pub fn translation_init(app: &AppHandle) -> Result<(), Box<dyn std::error::Error
     Ok(())
 }
 
-pub async fn translate(lines: &[String]) -> Result<Vec<TranslationPair>, Box<dyn std::error::Error>> {
+pub async fn translate(
+    lines: &[String],
+) -> Result<Vec<TranslationPair>, Box<dyn std::error::Error>> {
     let res: TranslationRes = reqwest::Client::new()
         .post("http://127.0.0.1:8888/translate")
         .json(&TranslationReq {
@@ -72,10 +74,12 @@ pub async fn translate(lines: &[String]) -> Result<Vec<TranslationPair>, Box<dyn
             if let Some(alts) = res.alternatives.get(i) {
                 translations.extend(alts.iter().cloned());
             }
-            TranslationPair { source: source.clone(), translations }
+            TranslationPair {
+                source: source.clone(),
+                translations,
+            }
         })
         .collect();
     println!("{:?}", pairs);
     Ok(pairs)
 }
-

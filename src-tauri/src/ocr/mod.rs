@@ -7,7 +7,7 @@ const TEMP_PATH: &str = "snsq_snip.png";
 
 use image::RgbaImage;
 use ort::session::{Session, builder::GraphOptimizationLevel};
-use serde::{Serialize};
+use serde::Serialize;
 
 use crate::translate::{TranslationPair, translate};
 
@@ -157,11 +157,16 @@ pub async fn snip_process(
 }
 
 #[tauri::command]
-pub async fn snip_confirm(app: AppHandle, lines: Vec<String>) -> Result<Vec<TranslationPair>, String> {
+pub async fn snip_confirm(
+    app: AppHandle,
+    lines: Vec<String>,
+) -> Result<Vec<TranslationPair>, String> {
     // Process via translataion model
     println!("{:?}", lines);
     snip_close(&app);
-    translate(&lines).await.map_err(|e| format!("Error: {e}").to_string())
+    translate(&lines)
+        .await
+        .map_err(|e| format!("Error: {e}").to_string())
 }
 
 #[tauri::command]
