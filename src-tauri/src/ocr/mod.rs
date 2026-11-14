@@ -1,7 +1,5 @@
 use std::{error::Error, sync::Mutex};
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, path::BaseDirectory};
-use tauri_plugin_clipboard_manager::ClipboardExt;
-use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
 const TEMP_PATH: &str = "snsq_snip.png";
 
@@ -71,42 +69,7 @@ pub fn run_ocr(app: &AppHandle, img: &RgbaImage) -> Result<Vec<TextCapture>, Box
     rec::run_recognition(&state, img, &boxes)
 }
 
-pub fn register_hotkeys(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
-    let mods = Modifiers::CONTROL | Modifiers::ALT;
-    let capture_key = Shortcut::new(Some(mods), Code::KeyC);
-    let snip_key = Shortcut::new(Some(mods), Code::KeyS);
-
-    app.plugin(
-        tauri_plugin_global_shortcut::Builder::new()
-            .with_handler(move |app, shortcut, event| {
-                if event.state() != ShortcutState::Released {
-                    return;
-                }
-
-                if shortcut == &capture_key {
-                    do_capture(app);
-                } else if shortcut == &snip_key {
-                    if let Err(e) = do_snip(app) {
-                        eprintln!("snip failed: {e}");
-                    }
-                }
-            })
-            .build(),
-    )?;
-
-    app.global_shortcut().register(capture_key)?;
-    app.global_shortcut().register(snip_key)?;
-    Ok(())
-}
-
-fn do_capture(app: &AppHandle) {
-    match app.clipboard().read_text() {
-        Ok(text) => println!("{text}"),
-        Err(e) => eprintln!("Failed to read clipboard: {e}"),
-    }
-}
-
-fn do_snip(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+pub fn do_snip(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     if app.get_webview_window("snip").is_some() {
         return Ok(());
     }

@@ -1,5 +1,8 @@
 use crate::ocr::ocr_init;
 use crate::translate::translation_init;
+use tauri::AppHandle;
+use tauri_plugin_clipboard_manager::ClipboardExt;
+use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -20,7 +23,8 @@ pub fn run() {
             translation_init(app.handle())?;
 
             #[cfg(desktop)]
-            ocr::register_hotkeys(app.handle())?;
+            // Needs to be moved to somewhere else
+            register_hotkeys(app.handle())?;
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())
@@ -32,4 +36,39 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+fn do_capture(app: &AppHandle) {
+    match app.clipboard().read_text() {
+        Ok(text) => println!("{text}"),
+        Err(e) => eprintln!("Failed to read clipboard: {e}"),
+    }
+}
+
+fn register_hotkeys(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+    let mods = Modifiers::CONTROL | Modifiers::ALT;
+    let capture_key = Shortcut::new(Some(mods), Code::KeyC);
+    let snip_key = Shortcut::new(Some(mods), Code::KeyS);
+
+    app.plugin(
+        tauri_plugin_global_shortcut::Builder::new()
+            .with_handler(move |app, shortcut, event| {
+                if event.state() != ShortcutState::Released {
+                    return;
+                }
+
+                if shortcut == &capture_key {
+                    do_capture(app);
+                } else if shortcut == &snip_key {
+                    if let Err(e) = ocr::do_snip(app) {
+                        eprintln!("snip failed: {e}");
+                    }
+                }
+            })
+            .build(),
+    )?;
+
+    app.global_shortcut().register(capture_key)?;
+    app.global_shortcut().register(snip_key)?;
+    Ok(())
 }
