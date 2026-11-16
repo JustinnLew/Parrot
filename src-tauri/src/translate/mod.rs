@@ -1,10 +1,14 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
 use tauri_plugin_shell::{ShellExt, process::CommandEvent};
 
+use crate::sqlite::add_translation_pairs;
+
 #[derive(Serialize)]
 struct TranslationReq<'a> {
-    q: &'a [String],
+    q: &'a [&'a str],
     source: &'a str,
     target: &'a str,
     format: &'a str,
@@ -15,18 +19,23 @@ struct TranslationReq<'a> {
 struct TranslationRes {
     #[serde(rename = "translatedText")]
     translated_text: Vec<String>,
+    #[serde(default)]
     alternatives: Vec<Vec<String>>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TranslationPair {
-    source: String,
-    translations: Vec<String>,
+    pub source_text: String,
+    pub translations: Vec<String>,
+    pub source_lang: String,
+    pub target_lang: String,
+    pub created_at: u64,
+    pub note: Option<String>,
 }
 
 pub fn translation_init(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
-    let libre_translataion_sidecar = app.shell().sidecar("lt")?;
-    let (mut rx, child) = libre_translataion_sidecar
+    let libre_translation_sidecar = app.shell().sidecar("lt")?;
+    let (mut rx, child) = libre_translation_sidecar
         .kill_on_drop(true)
         .spawn()
         .expect("Failed to spawn libretranslate");
@@ -48,14 +57,17 @@ pub fn translation_init(app: &AppHandle) -> Result<(), Box<dyn std::error::Error
 }
 
 pub async fn translate(
-    lines: &[String],
+    app: &AppHandle,
+    lines: Vec<&str>,
+    source_lang: &str,
+    target_lang: &str,
 ) -> Result<Vec<TranslationPair>, Box<dyn std::error::Error>> {
     let res: TranslationRes = reqwest::Client::new()
         .post("http://127.0.0.1:8888/translate")
         .json(&TranslationReq {
-            q: lines,
-            source: "en",
-            target: "zh",
+            q: &lines,
+            source: source_lang,
+            target: target_lang,
             format: "text",
             alternatives: 1,
         })
@@ -65,21 +77,33 @@ pub async fn translate(
         .json()
         .await?;
 
-    let pairs = lines
+    let TranslationRes {
+        translated_text,
+        alternatives,
+    } = res;
+
+    let created_at = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
+
+    let pairs: Vec<TranslationPair> = lines
         .iter()
-        .zip(res.translated_text)
+        .zip(translated_text)
         .enumerate()
         .map(|(i, (source, best))| {
             let mut translations = vec![best];
-            if let Some(alts) = res.alternatives.get(i) {
+            if let Some(alts) = alternatives.get(i) {
                 translations.extend(alts.iter().cloned());
             }
             TranslationPair {
-                source: source.clone(),
+                source_text: source.to_string(),
                 translations,
+                source_lang: source_lang.to_string(),
+                target_lang: target_lang.to_string(),
+                created_at,
+                note: None,
             }
         })
         .collect();
-    println!("{:?}", pairs);
+
+    add_translation_pairs(app, &pairs)?;
     Ok(pairs)
 }

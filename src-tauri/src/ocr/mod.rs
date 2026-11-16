@@ -122,12 +122,14 @@ pub async fn snip_process(
 #[tauri::command]
 pub async fn snip_confirm(
     app: AppHandle,
-    lines: Vec<String>,
+    lines: Vec<&str>,
+    source_lang: &str,
+    target_lang: &str,
 ) -> Result<Vec<TranslationPair>, String> {
     // Process via translataion model
     println!("{:?}", lines);
     snip_close(&app);
-    translate(&lines)
+    translate(&app, lines, source_lang, target_lang)
         .await
         .map_err(|e| format!("Error: {e}").to_string())
 }

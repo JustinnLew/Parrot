@@ -1,5 +1,5 @@
-use crate::ocr::ocr_init;
 use crate::translate::translation_init;
+use crate::{ocr::ocr_init, translate::translate};
 use tauri::AppHandle;
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
@@ -11,6 +11,7 @@ fn greet(name: &str) -> String {
 }
 
 mod ocr;
+mod sqlite;
 mod translate;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -19,11 +20,11 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app: &mut tauri::App| {
+            sqlite::init(app.handle())?;
             ocr_init(app.handle())?;
             translation_init(app.handle())?;
 
             #[cfg(desktop)]
-            // Needs to be moved to somewhere else
             register_hotkeys(app.handle())?;
             Ok(())
         })
@@ -40,7 +41,16 @@ pub fn run() {
 
 fn do_capture(app: &AppHandle) {
     match app.clipboard().read_text() {
-        Ok(text) => println!("{text}"),
+        Ok(text) => {
+            println!("{text}");
+            let app = app.clone();
+            tauri::async_runtime::spawn(async move {
+                match translate(&app, vec![text.as_str()], "en", "zh").await {
+                    Ok(pairs) => println!("{pairs:?}"),
+                    Err(e) => eprintln!("translate failed: {e}"),
+                }
+            });
+        }
         Err(e) => eprintln!("Failed to read clipboard: {e}"),
     }
 }
