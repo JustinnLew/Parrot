@@ -178,7 +178,10 @@ export default function SnipOverlay() {
           onPointerDown={(e) => e.stopPropagation()}
           onPointerUp={(e) => e.stopPropagation()}
           onClick={() => invoke("snip_confirm", {
-            lines: textCapture.map((t) => t.text)
+            lines: textCapture.map((t) => t.text),
+            sourceLang: "en",
+            targetLang: "zh",
+            note: "",
           })}
         >
           Confirm
