@@ -14,7 +14,7 @@ export default function TranslationCard({ pair }: { pair: TranslationPair }) {
         </div>
 
         <div className="bg-cyan-400/10 px-4 py-3">
-            <p className="text-sm font-medium leading-relaxed text-white">{main}</p>
+            <p className="text-sm leading-relaxed text-white">{main}</p>
             {/* {pair.romanization && (
             <p className="mt-0.5 text-xs italic text-cyan-200/70">
               {pair.romanization}
