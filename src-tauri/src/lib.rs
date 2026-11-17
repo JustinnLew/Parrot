@@ -5,12 +5,6 @@ use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 use tauri_plugin_positioner::{Position, WindowExt};
 
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
 mod ocr;
 mod sqlite;
 mod translate;
@@ -34,10 +28,11 @@ pub fn run() {
         })
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
-            greet,
             ocr::snip_cancel,
             ocr::snip_process,
             ocr::snip_confirm,
+            sqlite::pairs::get_translation_pairs,
+            sqlite::pairs::delete_translation_pairs
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

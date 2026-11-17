@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
 use tauri_plugin_shell::{ShellExt, process::CommandEvent};
 
-use crate::sqlite::add_translation_pairs;
+use crate::sqlite::pairs::add_translation_pairs;
 
 #[derive(Serialize)]
 struct TranslationReq<'a> {
@@ -23,7 +23,7 @@ struct TranslationRes {
     alternatives: Vec<Vec<String>>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TranslationPair {
     pub source_text: String,
     pub translations: Vec<String>,
