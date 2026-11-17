@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
-import { tempDir, join } from "@tauri-apps/api/path";
 import { SelectionBox } from "./SelectionBox";
+import { listen } from "@tauri-apps/api/event";
 
 type Pt = [number, number];
 type TextCapture = { boundingBox: [Pt, Pt, Pt, Pt]; text: string };
@@ -22,11 +22,10 @@ export default function SnipOverlay() {
   const imgRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
-    (async () => {
-      const dir = await tempDir();
-      const path = await join(dir, "snsq_snip.png");
-      setUrl(`${convertFileSrc(path)}?t=${Date.now()}`);
-    })();
+    const unlisten = listen<string>("snip-ready", (e) => {
+      setUrl(`${convertFileSrc(e.payload)}?t=${Date.now()}`);
+    });
+    return () => { unlisten.then((f) => f()); };
   }, []);
 
   // Esc cancels
@@ -177,12 +176,16 @@ export default function SnipOverlay() {
           className="z-10 cursor-pointer rounded px-2 py-1 text-white"
           onPointerDown={(e) => e.stopPropagation()}
           onPointerUp={(e) => e.stopPropagation()}
-          onClick={() => invoke("snip_confirm", {
+          onClick={() => {
+            invoke("snip_confirm", {
             lines: textCapture.map((t) => t.text),
             sourceLang: "en",
             targetLang: "zh",
             note: "",
-          })}
+          });
+          reset();
+          }
+        }
         >
           Confirm
         </button>
