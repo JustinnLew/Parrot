@@ -201,7 +201,7 @@ export default function SnipOverlay() {
           className="z-10 cursor-pointer rounded px-2 py-1 text-white"
           onPointerDown={(e) => e.stopPropagation()}
           onPointerUp={(e) => e.stopPropagation()}
-          onClick={() => invoke("snip_cancel")}
+          onClick={() => { reset(); invoke("snip_cancel");}}
         >
           Exit
         </button>
