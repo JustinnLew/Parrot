@@ -411,7 +411,7 @@ fn sort_boxes(boxes: &mut Vec<TextBox>) {
 // ============================================================================
 
 fn make_debug_dir() -> Option<PathBuf> {
-    let dir = std::env::temp_dir().join("snsq_debug");
+    let dir = std::env::temp_dir().join("parrot_debug");
     std::fs::create_dir_all(&dir).ok()?;
     Some(dir)
 }

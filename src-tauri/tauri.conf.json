@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "snsq",
+  "productName": "Parrot",
   "version": "0.1.0",
-  "identifier": "com.justi.snsq",
+  "identifier": "com.justi.parrot",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,9 +12,26 @@
   "app": {
     "windows": [
       {
-        "title": "snsq",
-        "width": 800,
-        "height": 600
+        "label": "main",
+        "url": "index.html",
+        "decorations": false,
+        "title": "Parrot",
+        "width": 400,
+        "height": 600,
+        "resizable": true,
+        "transparent": true,
+        "noRedirectionBitmap": true,
+        "shadow": false
+      },
+      {
+        "label": "snip",
+        "url": "index.html#/snip",
+        "title": "Parrot Snip",
+        "fullscreen": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "visible": false,
+        "noRedirectionBitmap": true
       }
     ],
     "security": {

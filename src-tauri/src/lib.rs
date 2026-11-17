@@ -1,8 +1,9 @@
 use crate::translate::translation_init;
 use crate::{ocr::ocr_init, translate::translate};
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
+use tauri_plugin_positioner::{Position, WindowExt};
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -17,9 +18,12 @@ mod translate;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_positioner::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app: &mut tauri::App| {
+            let win = app.get_webview_window("main").unwrap();
+            let _ = win.as_ref().window().move_window(Position::BottomRight);
             sqlite::init(app.handle())?;
             ocr_init(app.handle())?;
             translation_init(app.handle())?;

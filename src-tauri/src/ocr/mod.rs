@@ -1,7 +1,7 @@
 use std::{error::Error, sync::Mutex};
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, path::BaseDirectory};
+use tauri::{AppHandle, Emitter, Manager, path::BaseDirectory};
 
-const TEMP_PATH: &str = "snsq_snip.png";
+const TEMP_PATH: &str = "parrot_snip.png";
 
 use image::RgbaImage;
 use ort::session::{Session, builder::GraphOptimizationLevel};
@@ -70,7 +70,11 @@ pub fn run_ocr(app: &AppHandle, img: &RgbaImage) -> Result<Vec<TextCapture>, Box
 }
 
 pub fn do_snip(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
-    if app.get_webview_window("snip").is_some() {
+    let win = app
+        .get_webview_window("snip")
+        .ok_or("snip window missing")?;
+
+    if win.is_visible()? {
         return Ok(());
     }
     let monitor = xcap::Monitor::all()?
@@ -78,15 +82,15 @@ pub fn do_snip(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
         .next()
         .ok_or("no monitor")?;
     let img = monitor.capture_image()?;
-    let path = app.path().resolve("snsq_snip.png", BaseDirectory::Temp)?;
+    let path = app.path().resolve(TEMP_PATH, BaseDirectory::Temp)?;
     img.save(&path)?;
 
-    WebviewWindowBuilder::new(app, "snip", WebviewUrl::App("index.html#/snip".into()))
-        .title("snsq Snip")
-        .fullscreen(true)
-        .decorations(false)
-        .always_on_top(true)
-        .build()?;
+    let win = app
+        .get_webview_window("snip")
+        .ok_or("snip window missing")?;
+    win.emit("snip-ready", path.to_string_lossy().to_string())?;
+    win.show()?;
+    win.set_focus()?;
     Ok(())
 }
 
@@ -96,7 +100,7 @@ fn snip_close(app: &AppHandle) {
         let _ = std::fs::remove_file(p);
     }
     if let Some(win) = app.get_webview_window("snip") {
-        let _ = win.close();
+        let _ = win.hide();
     }
 }
 
