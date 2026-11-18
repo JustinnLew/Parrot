@@ -33,7 +33,7 @@ export default function Main() {
         <section className="relative flex-1 space-y-2 overflow-y-auto px-4 pb-4">
           {pairs.length === 0 ? (
             <p className="pt-8 text-center text-sm text-cyan-200/50 ">
-              No translations yet. Snip something to get started.
+              No translations yet...
             </p>
           ) : (
             pairs.map((pair) => <TranslationCard key={pair.id} pair={pair} />)

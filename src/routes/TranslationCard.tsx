@@ -1,3 +1,4 @@
+import { getReadingProvider } from "../helpers/readings";
 import type { TranslationPair } from "./Main";
 
 export default function TranslationCard({ pair }: { pair: TranslationPair }) {
@@ -13,13 +14,16 @@ export default function TranslationCard({ pair }: { pair: TranslationPair }) {
           </p>
         </div>
 
-        <div className="bg-cyan-400/10 px-4 py-3">
-            <p className="text-sm leading-relaxed text-white">{main}</p>
-            {/* {pair.romanization && (
-            <p className="mt-0.5 text-xs italic text-cyan-200/70">
-              {pair.romanization}
+        <div className="bg-cyan-400/10 px-4 py-3 flex justify-between">
+            <div className="">
+
+        <p className="text-sm leading-relaxed text-white">{main}</p>
+            {main && (
+                <p className="mt-0.5 text-xs italic text-cyan-200/70">
+                {getReadingProvider(pair.target_lang)?.annotate(main)}
             </p>
-          )} */}
+          )}
+          </div>
           {alternatives.length > 0 && (
             <ul className="mt-2.5 flex flex-wrap gap-1.5">
               {alternatives.map((alt) => (
@@ -39,7 +43,7 @@ export default function TranslationCard({ pair }: { pair: TranslationPair }) {
         <span className="font-semibold uppercase tracking-wide">
           {pair.source_lang} → {pair.target_lang}
         </span>
-        {pair.note && <span className="truncate">{pair.note}</span>}
+        {<span className="truncate">{pair.note}aaaaa</span>}
         <time dateTime={date.toISOString()} className="ml-auto shrink-0">
           {date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
         </time>
