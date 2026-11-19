@@ -73,6 +73,9 @@ fn register_hotkeys(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
                         eprintln!("snip failed: {e}");
                     }
                 }
+                if let Some(win) = app.get_webview_window("main") {
+                    let _ = win.set_focus();
+                }
             })
             .build(),
     )?;
