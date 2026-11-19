@@ -16,3 +16,47 @@
     inset 0 -1px 0 rgba(255,255,255,0.08),
     inset 0 0 30px rgba(255,255,255,0.05);
 }
+
+/* Glass scrollbar: a slim floating cyan pill that brightens on hover.
+   Add the `scroll-glass` class to any overflow-y-auto container. */
+
+.scroll-glass::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.scroll-glass::-webkit-scrollbar-track {
+  background: transparent;
+  margin-block: 10px;
+}
+
+.scroll-glass::-webkit-scrollbar-thumb {
+  background-color: rgb(34 211 238 / 0.6);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  border-radius: 9999px;
+}
+
+.scroll-glass:hover::-webkit-scrollbar-thumb {
+  background-color: rgb(34 211 238 / 0.6);
+}
+
+.scroll-glass::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(103 232 249 / 0.8);
+}
+
+.scroll-glass::-webkit-scrollbar-thumb:active {
+  background-color: rgb(103 232 249 / 0.8);
+}
+
+.scroll-glass::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Fallback for webviews without ::-webkit-scrollbar support */
+@supports not selector(::-webkit-scrollbar) {
+  .scroll-glass {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(34 211 238 / 0.35) transparent;
+  }
+}

@@ -4,7 +4,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::{sqlite::Db, translate::TranslationPair};
 
-const PAGE_SIZE: i64 = 10;
+const PAGE_SIZE: i64 = 5;
 
 #[derive(Serialize, Clone, Debug)]
 pub struct StoredPair {
@@ -55,7 +55,24 @@ pub fn add_translation_pairs(app: &AppHandle, pairs: &[TranslationPair]) -> Resu
 }
 
 #[tauri::command]
-pub async fn delete_translation_pairs(app: AppHandle, pair_ids: Vec<i64>) -> Result<(), String> {
+pub async fn delete_translation_pairs(db: State<'_, Db>, pair_ids: Vec<i64>) -> Result<(), String> {
+    if pair_ids.is_empty() {
+        return Ok(())
+    }
+    let mut conn = db.0.lock().map_err(|e| e.to_string())?;
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+
+    {
+        let mut stmt = tx
+            .prepare_cached("DELETE FROM pairs WHERE id = ?1")
+            .map_err(|e| e.to_string())?;
+        for id in &pair_ids {
+            stmt.execute(params![id]).map_err(|e| e.to_string())?;
+        }
+    }
+
+    tx.commit().map_err(|e| e.to_string())?;
+
     Ok(())
 }
 

@@ -17,7 +17,7 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app: &mut tauri::App| {
             let win = app.get_webview_window("main").unwrap();
-            let _ = win.as_ref().window().move_window(Position::BottomRight);
+            let _ = win.as_ref().window().move_window(Position::RightCenter);
             sqlite::init(app.handle())?;
             ocr_init(app.handle())?;
             translation_init(app.handle())?;
