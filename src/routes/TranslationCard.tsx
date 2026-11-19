@@ -1,7 +1,8 @@
 import { useId, useState } from "react";
-import { ChevronDown, X } from "lucide-react";
+import { ChevronDown, Play, X } from "lucide-react";
 import { getReadingProvider } from "../helpers/readings";
 import type { TranslationPair } from "./Main";
+import { speak } from "../helpers/tts/webSpeech";
 
 function compactTime(ts: number, now = Date.now()): string {
   const secs = Math.max(0, Math.floor(now / 1000 - ts));
@@ -63,15 +64,26 @@ export default function TranslationCard({
           <div className="px-4 py-3">
             <div className="flex items-start justify-between gap-1">
               <p className="min-w-0 text-sm leading-relaxed text-white">{main}</p>
+              <div className="flex gap-2">
+                <button
+                    type="button"
+                    onClick={() => speak(main, pair.target_lang)}
+                    aria-label="Audio translation"
+                    title="Audio"
+                    className="shrink-0 rounded-md p-1 text-cyan-200/40 transition-colors hover:bg-emerald-400/15 hover:text-emerald-300 focus-visible:outline-2 focus-visible:outline-emerald-300/60"
+                >
+                    <Play size={14} strokeWidth={1.75} />
+                </button>
               <button
                 type="button"
                 onClick={() => onDelete(pair.id)}
                 aria-label="Delete translation"
                 title="Delete"
-                className="-mr-2 -mt-1 shrink-0 rounded-md p-1 text-cyan-200/40 transition-colors hover:bg-rose-400/15 hover:text-rose-300 focus-visible:outline-2 focus-visible:outline-rose-300/60"
+                className="shrink-0 rounded-md p-1 text-cyan-200/40 transition-colors hover:bg-rose-400/15 hover:text-rose-300 focus-visible:outline-2 focus-visible:outline-rose-300/60"
               >
                 <X size={14} strokeWidth={1.75} />
               </button>
+              </div>
             </div>
 
             {reading && <p className="mt-0.5 text-xs italic text-cyan-200/70">{reading}</p>}
@@ -107,12 +119,23 @@ export default function TranslationCard({
                   {alternatives.map((alt, i) => {
                     const altReading = showReadings ? provider?.annotate(alt) : undefined;
                     return (
-                      <li key={`${i}:${alt}`}>
-                        <p className="text-sm leading-snug text-white/90">{alt}</p>
-                        {altReading && (
-                          <p className="mt-0.5 text-xs italic text-cyan-200/70">{altReading}</p>
-                        )}
-                      </li>
+                        <div key={`${i}:${alt}`} className="flex justify-between">
+                            <li>
+                                <p className="text-sm leading-snug text-white/90">{alt}</p>
+                                {altReading && (
+                                    <p className="mt-0.5 text-xs italic text-cyan-200/70">{altReading}</p>
+                                )}
+                            </li>
+                            <button
+                                type="button"
+                                onClick={() => speak(alt, pair.target_lang)}
+                                aria-label="Audio translation"
+                                title="Audio"
+                                className="h-fit rounded-md p-1 text-cyan-200/40 transition-colors hover:bg-emerald-400/15 hover:text-emerald-300"
+                                >
+                                <Play size={14} strokeWidth={1.75} />
+                            </button>
+                        </div>
                     );
                   })}
                 </ul>
