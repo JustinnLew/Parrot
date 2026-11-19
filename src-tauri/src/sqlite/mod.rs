@@ -23,8 +23,6 @@ pub fn init(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
         [],
     )?;
 
-    conn.pragma_update(None, "foreign_keys", "ON")?;
-
     app.manage(Db(Mutex::new(conn)));
 
     Ok(())
