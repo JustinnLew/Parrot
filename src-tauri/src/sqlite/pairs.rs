@@ -57,7 +57,7 @@ pub fn add_translation_pairs(app: &AppHandle, pairs: &[TranslationPair]) -> Resu
 #[tauri::command]
 pub async fn delete_translation_pairs(db: State<'_, Db>, pair_ids: Vec<i64>) -> Result<(), String> {
     if pair_ids.is_empty() {
-        return Ok(())
+        return Ok(());
     }
     let mut conn = db.0.lock().map_err(|e| e.to_string())?;
     let tx = conn.transaction().map_err(|e| e.to_string())?;
