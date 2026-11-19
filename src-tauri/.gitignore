@@ -7,6 +7,6 @@
 /gen/schemas
 
 # Binaries
-./binaries/lt-x86_64-pc-windows-msvc.exe
-./src/ocr/recognition/inference.onnx
-./src/ocr/detection/inference.onnx
+binaries/lt-x86_64-pc-windows-msvc.exe
+src/ocr/recognition/inference.onnx
+src/ocr/detection/inference.onnx
