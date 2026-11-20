@@ -1,31 +1,17 @@
 use std::sync::Mutex;
 
+use crate::settings::AppSettings;
 use crate::translate::translation_init;
 use crate::{ocr::ocr_init, translate::translate};
-use serde_json::json;
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, State};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 use tauri_plugin_positioner::{Position, WindowExt};
-use tauri_plugin_store::StoreExt;
 
 mod ocr;
+mod settings;
 mod sqlite;
 mod translate;
-
-pub struct AppSettings {
-    pub source_lang: String,
-    pub target_lang: String,
-}
-
-impl Default for AppSettings {
-    fn default() -> Self {
-        AppSettings {
-            source_lang: "en".to_string(),
-            target_lang: "zh".to_string(),
-        }
-    }
-}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -35,15 +21,16 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app: &mut tauri::App| {
-            settings_init(app.handle())?;
+            let win = app.get_webview_window("main").unwrap();
+            let _ = win.as_ref().window().move_window(Position::RightCenter);
+
+            settings::settings_init(app.handle())?;
             sqlite::init(app.handle())?;
             ocr_init(app.handle())?;
             translation_init(app.handle())?;
 
             #[cfg(desktop)]
             register_hotkeys(app.handle())?;
-            let win = app.get_webview_window("main").unwrap();
-            let _ = win.as_ref().window().move_window(Position::RightCenter);
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())
@@ -52,38 +39,26 @@ pub fn run() {
             ocr::snip_process,
             ocr::snip_confirm,
             sqlite::pairs::get_translation_pairs,
-            sqlite::pairs::delete_translation_pairs
+            sqlite::pairs::delete_translation_pairs,
+            settings::settings_set_source_lang,
+            settings::settings_set_target_lang,
+            settings::settings_get
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
 
-fn settings_init(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
-    let mut settings = AppSettings::default();
-    let settings_file = app.store("settings.json")?;
-    match settings_file.get("source_lang") {
-        Some(v) => {
-            settings.source_lang = v.to_string();
-        }
-        None => settings_file.set("source_lang", json!("en")),
-    }
-    match settings_file.get("target_lang") {
-        Some(v) => {
-            settings.target_lang = v.to_string();
-        }
-        None => settings_file.set("target_lang", json!("zh")),
-    }
-    app.manage(Mutex::new(settings));
-    Ok(())
-}
-
-fn do_capture(app: &AppHandle) {
+fn do_capture(app: &AppHandle, settings: State<'_, Mutex<AppSettings>>) {
+    let (source, target) = {
+        let s = settings.lock().unwrap();
+        (s.source_lang.clone(), s.target_lang.clone())
+    };
     match app.clipboard().read_text() {
         Ok(text) => {
             println!("{text}");
             let app = app.clone();
             tauri::async_runtime::spawn(async move {
-                match translate(&app, vec![text.as_str()], "en", "zh").await {
+                match translate(&app, vec![text.as_str()], &source, &target).await {
                     Ok(pairs) => println!("{pairs:?}"),
                     Err(e) => eprintln!("translate failed: {e}"),
                 }
@@ -106,7 +81,7 @@ fn register_hotkeys(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
                 }
 
                 if shortcut == &capture_key {
-                    do_capture(app);
+                    do_capture(app, app.state::<Mutex<AppSettings>>());
                 } else if shortcut == &snip_key {
                     if let Err(e) = ocr::do_snip(app) {
                         eprintln!("snip failed: {e}");

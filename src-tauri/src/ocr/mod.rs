@@ -1,5 +1,5 @@
 use std::{error::Error, sync::Mutex};
-use tauri::{AppHandle, Emitter, Manager, path::BaseDirectory};
+use tauri::{AppHandle, Emitter, Manager, State, path::BaseDirectory};
 
 const TEMP_PATH: &str = "parrot_snip.png";
 
@@ -7,7 +7,10 @@ use image::RgbaImage;
 use ort::session::{Session, builder::GraphOptimizationLevel};
 use serde::Serialize;
 
-use crate::translate::{TranslationPair, translate};
+use crate::{
+    settings::AppSettings,
+    translate::{TranslationPair, translate},
+};
 
 mod det;
 mod rec;
@@ -127,13 +130,15 @@ pub async fn snip_process(
 pub async fn snip_confirm(
     app: AppHandle,
     lines: Vec<&str>,
-    source_lang: &str,
-    target_lang: &str,
+    settings: State<'_, Mutex<AppSettings>>,
 ) -> Result<Vec<TranslationPair>, String> {
-    // Process via translataion model
+    let (source_lang, target_lang) = {
+        let s = settings.lock().unwrap();
+        (s.source_lang.clone(), s.target_lang.clone())
+    };
     println!("{:?}", lines);
     snip_close(&app);
-    translate(&app, lines, source_lang, target_lang)
+    translate(&app, lines, &source_lang, &target_lang)
         .await
         .map_err(|e| format!("Error: {e}").to_string())
 }
