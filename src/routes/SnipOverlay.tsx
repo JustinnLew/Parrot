@@ -179,8 +179,6 @@ export default function SnipOverlay() {
           onClick={() => {
             invoke("snip_confirm", {
             lines: textCapture.map((t) => t.text),
-            sourceLang: "en",
-            targetLang: "zh",
             note: "",
           });
           reset();

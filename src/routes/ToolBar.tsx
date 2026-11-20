@@ -1,5 +1,32 @@
 import type { LucideIcon } from "lucide-react";
 import { Eye, EyeOff } from "lucide-react";
+import { useSettings } from "../helpers/settings/useSettings";
+import { LanguagePicker } from "../components/language/LanguagePicker";
+
+/** Slim controls row that sits under the NavBar. Add more <ToolButton>s here. */
+export default function ToolBar({
+  showReadings,
+  onToggleReadings,
+}: {
+  showReadings: boolean;
+  onToggleReadings: () => void;
+}) {
+  const { settings } = useSettings();
+
+  return (
+    <div className="relative mx-4 my-2 flex items-center justify-end gap-1 border-b border-white/10 pb-2">
+      {settings &&
+        <LanguagePicker/>
+      }
+      <ToolButton
+        icon={showReadings ? Eye : EyeOff}
+        label="Readings"
+        pressed={showReadings}
+        onClick={onToggleReadings}
+      />
+    </div>
+  );
+}
 
 function ToolButton({
   icon: Icon,
@@ -27,25 +54,5 @@ function ToolButton({
       <Icon size={14} strokeWidth={1.75} />
       {label}
     </button>
-  );
-}
-
-/** Slim controls row that sits under the NavBar. Add more <ToolButton>s here. */
-export default function ToolBar({
-  showReadings,
-  onToggleReadings,
-}: {
-  showReadings: boolean;
-  onToggleReadings: () => void;
-}) {
-  return (
-    <div className="relative mx-4 my-2 flex items-center justify-end gap-1 border-b border-white/10 pb-2">
-      <ToolButton
-        icon={showReadings ? Eye : EyeOff}
-        label="Readings"
-        pressed={showReadings}
-        onClick={onToggleReadings}
-      />
-    </div>
   );
 }
