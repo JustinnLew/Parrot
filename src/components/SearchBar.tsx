@@ -50,8 +50,8 @@ export default function SearchBar({
         container.scrollTo({ top, behavior: "smooth" });
 
         const target = (el.firstElementChild as HTMLElement) ?? el;
-        target.classList.add("ring-2", "ring-white/60");
-        setTimeout(() => target.classList.remove("ring-2", "ring-white/60"), 1200);
+        target.classList.add("ring-2", "ring-purple-300/80");
+        setTimeout(() => target.classList.remove("ring-2", "ring-purple-300/80"), 3000);
     }
 
     async function runTranslate() {
