@@ -7,10 +7,7 @@ use image::RgbaImage;
 use ort::session::{Session, builder::GraphOptimizationLevel};
 use serde::Serialize;
 
-use crate::{
-    settings::AppSettings,
-    translate::{TranslationPair, translate},
-};
+use crate::{settings::AppSettings, translate::translate};
 
 mod det;
 mod rec;
