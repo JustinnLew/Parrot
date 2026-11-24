@@ -89,7 +89,9 @@ export default function SearchBar({
             <input
                 type="text"
                 value={query}
-                className="flex-1 border rounded-md py-1.5 px-1.5 text-sm"
+                className="flex-1 border border-white/40 focus:border-purple-400/70
+                ring-0 focus:ring focus:ring-purple-400/30 transition-all duration-200
+                rounded-md py-1.5 px-1.5 text-sm focus:outline-hidden"
                 placeholder="Search..."
                 onChange={(e) => {
                     setQuery(e.target.value);
