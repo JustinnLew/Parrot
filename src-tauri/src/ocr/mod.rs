@@ -131,7 +131,7 @@ pub async fn snip_confirm(
     app: AppHandle,
     lines: Vec<&str>,
     settings: State<'_, Mutex<AppSettings>>,
-) -> Result<Vec<TranslationPair>, String> {
+) -> Result<(), String> {
     let (source_lang, target_lang) = {
         let s = settings.lock().unwrap();
         (s.source_lang.clone(), s.target_lang.clone())
@@ -140,7 +140,8 @@ pub async fn snip_confirm(
     snip_close(&app);
     translate(&app, lines, &source_lang, &target_lang)
         .await
-        .map_err(|e| format!("Error: {e}").to_string())
+        .map_err(|e| format!("Error: {e}").to_string())?;
+    Ok(())
 }
 
 #[tauri::command]

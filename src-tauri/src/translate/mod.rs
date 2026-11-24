@@ -61,7 +61,7 @@ pub async fn translate(
     lines: Vec<&str>,
     source_lang: &str,
     target_lang: &str,
-) -> Result<Vec<TranslationPair>, Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error>> {
     let res: TranslationRes = reqwest::Client::new()
         .post("http://127.0.0.1:8888/translate")
         .json(&TranslationReq {
@@ -105,5 +105,5 @@ pub async fn translate(
         .collect();
 
     add_translation_pairs(app, &pairs)?;
-    Ok(pairs)
+    Ok(())
 }
