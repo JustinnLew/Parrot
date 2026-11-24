@@ -5,6 +5,7 @@ import { listen } from "@tauri-apps/api/event";
 import ToolBar from "./ToolBar";
 import TranslationCard from "./TranslationCard";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
+import SearchBar from "../components/SearchBar";
 
 export type TranslationPair = {
   id: number;
@@ -137,6 +138,7 @@ export default function Main() {
           showReadings={showReadings}
           onToggleReadings={() => setShowReadings((v) => !v)}
         />
+        <SearchBar pairs={pairs} scrollRef={scrollRef} />
 
       <MotionConfig reducedMotion="user">
         <section
@@ -146,6 +148,7 @@ export default function Main() {
           <AnimatePresence initial={false} mode="popLayout">
             {pairs.map((pair) => (
               <motion.div
+                id={`pair-${pair.id}`}
                 key={pair.id}
                 layout="position"
                 initial={

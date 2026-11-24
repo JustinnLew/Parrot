@@ -14,7 +14,7 @@ export default function ToolBar({
   const { settings } = useSettings();
 
   return (
-    <div className="relative mx-4 my-2 flex items-center justify-end gap-1 border-b border-white/10 pb-2">
+    <div className="relative mx-4 my-2 flex items-center justify-end gap-1">
       {settings &&
         <LanguagePicker/>
       }
