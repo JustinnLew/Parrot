@@ -1,6 +1,6 @@
 import { RefObject, useMemo, useState } from "react";
-import { TranslationPair } from "../routes/Main";
 import { invoke } from "@tauri-apps/api/core";
+import { TranslationPair } from "../routes/Pairs";
 
 const MAX_RESULTS = 8;
 
